@@ -9,6 +9,7 @@ use crate::persistence;
 const FOOD_COLOR: pw::types::Color = [0.80, 0.00, 0.00, 1.0];
 const BORDER_COLOR: pw::types::Color = [0.00, 0.00, 0.00, 1.0];
 const GAMEOVER_COLOR: pw::types::Color = [0.90, 0.00, 0.00, 0.5];
+const PAUSE_COLOR: pw::types::Color = [0.00, 0.00, 0.00, 0.5];
 
 const MOVING_PERIOD: f64 = 0.3;
 const RESTART_TIME: f64 = 3.0;
@@ -26,6 +27,7 @@ pub struct Game {
     game_over: bool,
     waiting_time: f64,
     high_score: u32,
+    paused: bool,
 }
 
 impl Game {
@@ -40,11 +42,20 @@ impl Game {
             height,
             game_over: false,
             high_score: persistence::load_high_score(),
+            paused: false,
         }
     }
 
     pub fn key_pressed(&mut self, key: pw::Key) {
         if self.game_over {
+            return;
+        }
+
+        if key == pw::Key::Space {
+            self.paused = !self.paused;
+        }
+
+        if self.paused {
             return;
         }
 
@@ -80,10 +91,23 @@ impl Game {
         if self.game_over {
             draw_rectangle(GAMEOVER_COLOR, 0, 0, self.width, self.height, con, g);
         }
+
+        if self.paused {
+            draw_rectangle(PAUSE_COLOR, 0, 0, self.width, self.height, con, g);
+            // Draw two vertical bars for pause icon
+            let center_x = self.width / 2;
+            let center_y = self.height / 2;
+            draw_rectangle(BORDER_COLOR, center_x - 1, center_y - 1, 1, 3, con, g);
+            draw_rectangle(BORDER_COLOR, center_x + 1, center_y - 1, 1, 3, con, g);
+        }
     }
 
     pub fn update(&mut self, delta_time: f64) {
         self.waiting_time += delta_time;
+
+        if self.paused {
+            return;
+        }
 
         if self.game_over {
             if self.waiting_time > RESTART_TIME {
