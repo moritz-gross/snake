@@ -4,6 +4,7 @@ use rand::Rng;
 
 use crate::draw::{draw_block, draw_rectangle};
 use crate::snake::{Direction, Snake};
+use crate::persistence;
 
 const FOOD_COLOR: pw::types::Color = [0.80, 0.00, 0.00, 1.0];
 const BORDER_COLOR: pw::types::Color = [0.00, 0.00, 0.00, 1.0];
@@ -24,6 +25,7 @@ pub struct Game {
 
     game_over: bool,
     waiting_time: f64,
+    high_score: u32,
 }
 
 impl Game {
@@ -37,6 +39,7 @@ impl Game {
             width,
             height,
             game_over: false,
+            high_score: persistence::load_high_score(),
         }
     }
 
@@ -103,7 +106,15 @@ impl Game {
         if self.food_exists && self.food_x == head_x && self.food_y == head_y {
             self.food_exists = false;
             self.snake.restore_tail();
+
+            let current_score = self.snake.len() as u32;
+            if current_score > self.high_score {
+                self.high_score = current_score;
+                persistence::save_high_score(self.high_score);
+                println!("New High Score: {}", self.high_score);
+            }
         }
+
     }
 
     fn check_if_snake_alive(&self, dir: Option<Direction>) -> bool {

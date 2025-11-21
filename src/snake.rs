@@ -124,6 +124,10 @@ impl Snake {
         }
         return false;
     }
+
+    pub fn len(&self) -> usize {
+        self.body.len()
+    }
 }
 
 #[cfg(test)]
