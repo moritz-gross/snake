@@ -38,12 +38,31 @@ pub fn draw_block(color: pw::types::Color, x: i32, y: i32, con: &pw::Context, g:
 
 #[cfg(test)]
 mod test {
-
-    use crate::draw;
+    use super::*;
 
     #[test]
-    fn array_direction_up() {
-        let x = 4;
-        assert_eq!(draw::to_coord_u32(x), 100)
+    fn to_coord_u32_converts_correctly() {
+        assert_eq!(to_coord_u32(4), 100); // 4 * 25 = 100
+    }
+
+    #[test]
+    fn to_coord_returns_float() {
+        assert_eq!(to_coord(4), 100.0);
+    }
+
+    #[test]
+    fn to_coord_handles_zero() {
+        assert_eq!(to_coord(0), 0.0);
+        assert_eq!(to_coord_u32(0), 0);
+    }
+
+    #[test]
+    fn to_coord_handles_negative() {
+        assert_eq!(to_coord(-1), -25.0);
+    }
+
+    #[test]
+    fn block_size_is_25() {
+        assert_eq!(to_coord(1), 25.0);
     }
 }

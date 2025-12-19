@@ -1,5 +1,4 @@
-extern crate piston_window;
-extern crate rand;
+use piston_window;
 
 mod draw;
 mod game;
@@ -42,5 +41,5 @@ fn pw_from_constants() -> pw::PistonWindow {
     pw::WindowSettings::new(GAME_TITLE, [to_coord_u32(WIDTH), to_coord_u32(HEIGHT)])
         .exit_on_esc(true)
         .build()
-        .unwrap()
+        .expect("Failed to create window")
 }

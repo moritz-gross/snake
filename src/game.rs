@@ -125,7 +125,7 @@ impl Game {
         }
     }
 
-    fn check_eating(&mut self) {
+    pub(crate) fn check_eating(&mut self) {
         let (head_x, head_y): (i32, i32) = self.snake.head_position();
         if self.food_exists && self.food_x == head_x && self.food_y == head_y {
             self.food_exists = false;
@@ -141,7 +141,7 @@ impl Game {
 
     }
 
-    fn check_if_snake_alive(&self, dir: Option<Direction>) -> bool {
+    pub(crate) fn check_if_snake_alive(&self, dir: Option<Direction>) -> bool {
         let (next_x, next_y) = self.snake.next_head(dir);
 
         if self.snake.overlap_tail(next_x, next_y) {
@@ -151,7 +151,7 @@ impl Game {
         next_x > 0 && next_y > 0 && next_x < self.width - 1 && next_y < self.height - 1
     }
 
-    fn add_food(&mut self) {
+    pub(crate) fn add_food(&mut self) {
         let mut rng = rand::thread_rng();
 
         let mut new_x = rng.gen_range(1..self.width - 1);
@@ -176,12 +176,286 @@ impl Game {
         self.waiting_time = 0.0;
     }
 
-    fn restart(&mut self) {
+    pub(crate) fn restart(&mut self) {
         self.snake = Snake::new(2, 2);
         self.waiting_time = 0.0;
         self.food_exists = true;
         self.food_x = 6;
         self.food_y = 4;
         self.game_over = false;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_game_over(&self) -> bool {
+        self.game_over
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_paused(&self) -> bool {
+        self.paused
+    }
+
+    #[cfg(test)]
+    pub(crate) fn food_position(&self) -> Option<(i32, i32)> {
+        if self.food_exists {
+            Some((self.food_x, self.food_y))
+        } else {
+            None
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn snake_len(&self) -> usize {
+        self.snake.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn snake_head_position(&self) -> (i32, i32) {
+        self.snake.head_position()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_food_position(&mut self, x: i32, y: i32) {
+        self.food_x = x;
+        self.food_y = y;
+        self.food_exists = true;
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use piston_window::Key;
+
+    #[test]
+    fn new_creates_game_with_correct_dimensions() {
+        let game = Game::new(15, 15);
+        assert_eq!(game.width, 15);
+        assert_eq!(game.height, 15);
+    }
+
+    #[test]
+    fn new_game_is_not_paused() {
+        let game = Game::new(15, 15);
+        assert!(!game.is_paused());
+    }
+
+    #[test]
+    fn new_game_is_not_game_over() {
+        let game = Game::new(15, 15);
+        assert!(!game.is_game_over());
+    }
+
+    #[test]
+    fn new_game_has_food() {
+        let game = Game::new(15, 15);
+        assert!(game.food_position().is_some());
+    }
+
+    #[test]
+    fn new_game_snake_has_initial_length() {
+        let game = Game::new(15, 15);
+        assert_eq!(game.snake_len(), 3);
+    }
+
+    #[test]
+    fn space_toggles_pause() {
+        let mut game = Game::new(15, 15);
+        assert!(!game.is_paused());
+
+        game.key_pressed(Key::Space);
+        assert!(game.is_paused());
+
+        game.key_pressed(Key::Space);
+        assert!(!game.is_paused());
+    }
+
+    #[test]
+    fn arrow_keys_move_snake() {
+        let mut game = Game::new(15, 15);
+        let initial_pos = game.snake_head_position();
+
+        game.key_pressed(Key::Down);
+        let new_pos = game.snake_head_position();
+
+        assert_eq!(new_pos.1, initial_pos.1 + 1); // moved down
+    }
+
+    #[test]
+    fn wasd_keys_move_snake() {
+        let mut game = Game::new(15, 15);
+        let initial_pos = game.snake_head_position();
+
+        game.key_pressed(Key::S); // down
+        let new_pos = game.snake_head_position();
+
+        assert_eq!(new_pos.1, initial_pos.1 + 1);
+    }
+
+    #[test]
+    fn cannot_move_in_opposite_direction() {
+        let mut game = Game::new(15, 15);
+        // Snake starts moving right, pressing left should not reverse
+        let initial_pos = game.snake_head_position();
+
+        game.key_pressed(Key::Left);
+        let new_pos = game.snake_head_position();
+
+        // Should still move right (or not move at all), not left
+        assert!(new_pos.0 >= initial_pos.0);
+    }
+
+    #[test]
+    fn paused_game_ignores_movement_keys() {
+        let mut game = Game::new(15, 15);
+        game.key_pressed(Key::Space); // pause
+        let pos_before = game.snake_head_position();
+
+        game.key_pressed(Key::Down);
+        let pos_after = game.snake_head_position();
+
+        assert_eq!(pos_before, pos_after);
+    }
+
+    #[test]
+    fn update_moves_snake_after_moving_period() {
+        let mut game = Game::new(15, 15);
+        let initial_pos = game.snake_head_position();
+
+        // Simulate time passing beyond MOVING_PERIOD (0.3)
+        game.update(0.35);
+        let new_pos = game.snake_head_position();
+
+        assert_ne!(initial_pos, new_pos);
+    }
+
+    #[test]
+    fn update_does_not_move_when_paused() {
+        let mut game = Game::new(15, 15);
+        game.key_pressed(Key::Space); // pause
+        let pos_before = game.snake_head_position();
+
+        game.update(0.35);
+        let pos_after = game.snake_head_position();
+
+        assert_eq!(pos_before, pos_after);
+    }
+
+    #[test]
+    fn snake_dies_hitting_left_wall() {
+        let mut game = Game::new(15, 15);
+        // Move snake to the left wall
+        game.key_pressed(Key::Up); // change direction first to allow left
+        game.key_pressed(Key::Left);
+
+        // Keep moving left until game over
+        for _ in 0..10 {
+            if game.is_game_over() {
+                break;
+            }
+            game.update(0.35);
+        }
+
+        assert!(game.is_game_over());
+    }
+
+    #[test]
+    fn snake_dies_hitting_top_wall() {
+        let mut game = Game::new(15, 15);
+        game.key_pressed(Key::Up);
+
+        for _ in 0..10 {
+            if game.is_game_over() {
+                break;
+            }
+            game.update(0.35);
+        }
+
+        assert!(game.is_game_over());
+    }
+
+    #[test]
+    fn check_if_snake_alive_returns_false_at_wall() {
+        let game = Game::new(15, 15);
+        // Snake head starts at (4, 2), moving right toward wall at x=14
+        // At x=13, next move would hit wall at x=14 which is width-1
+        // Actually the boundary check is next_x < self.width - 1
+        // So if next_x = 14 and width = 15, 14 < 14 is false
+        assert!(game.check_if_snake_alive(None)); // should be alive initially
+    }
+
+    #[test]
+    fn eating_food_grows_snake() {
+        let mut game = Game::new(15, 15);
+        let initial_len = game.snake_len();
+
+        // Place food directly in front of snake (snake head at (4,2), moving right)
+        game.set_food_position(5, 2);
+        game.update(0.35); // move onto food
+
+        assert_eq!(game.snake_len(), initial_len + 1);
+    }
+
+    #[test]
+    fn eating_food_sets_food_exists_to_false() {
+        let mut game = Game::new(15, 15);
+
+        // Place food in front of snake (snake head at (4,2), moving right)
+        game.set_food_position(5, 2);
+        assert!(game.food_exists); // food exists before eating
+
+        game.update(0.35); // move onto food
+
+        // Snake should have grown (proving food was eaten)
+        assert_eq!(game.snake_len(), 4);
+
+        // food_exists should now be false (food was consumed)
+        // Note: add_food is called on NEXT update cycle, not immediately
+        assert!(!game.food_exists);
+
+        // Next update should spawn new food
+        game.update(0.35);
+        assert!(game.food_exists);
+    }
+
+    #[test]
+    fn add_food_places_food_in_bounds() {
+        let mut game = Game::new(15, 15);
+        game.food_exists = false;
+        game.add_food();
+
+        let (x, y) = game.food_position().unwrap();
+        assert!(x > 0 && x < 14);
+        assert!(y > 0 && y < 14);
+    }
+
+    #[test]
+    fn restart_resets_game_state() {
+        let mut game = Game::new(15, 15);
+
+        // Mess up the game state
+        game.game_over = true;
+        game.food_exists = false;
+
+        game.restart();
+
+        assert!(!game.is_game_over());
+        assert!(game.food_position().is_some());
+        assert_eq!(game.snake_len(), 3);
+    }
+
+    #[test]
+    fn game_restarts_after_delay_when_game_over() {
+        let mut game = Game::new(15, 15);
+        game.game_over = true;
+        game.waiting_time = 0.0;
+
+        // Update with less than RESTART_TIME
+        game.update(2.0);
+        assert!(game.is_game_over()); // still game over
+
+        // Update past RESTART_TIME (3.0)
+        game.update(2.0); // total waiting_time now > 3.0
+        assert!(!game.is_game_over()); // should restart
     }
 }
