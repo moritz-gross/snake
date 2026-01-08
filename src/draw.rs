@@ -11,15 +11,15 @@ pub fn to_coord_u32(game_coord: i32) -> u32 {
 }
 
 pub fn draw_rectangle(
-    color: pw::types::Color,
+    color: pw::graphics::types::Color,
     x: i32,
     y: i32,
     width: i32,
     height: i32,
-    con: &pw::Context,
-    g: &mut pw::G2d,
+    con: &pw::graphics::Context,
+    g: &mut pw::wgpu_graphics::WgpuGraphics,
 ) {
-    pw::rectangle(
+    pw::graphics::rectangle(
         color,
         [
             to_coord(x),
@@ -32,7 +32,13 @@ pub fn draw_rectangle(
     )
 }
 
-pub fn draw_block(color: pw::types::Color, x: i32, y: i32, con: &pw::Context, g: &mut pw::G2d) {
+pub fn draw_block(
+    color: pw::graphics::types::Color,
+    x: i32,
+    y: i32,
+    con: &pw::graphics::Context,
+    g: &mut pw::wgpu_graphics::WgpuGraphics,
+) {
     draw_rectangle(color, x, y, 1, 1, con, g);
 }
 

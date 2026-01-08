@@ -11,7 +11,7 @@ use crate::game::Game;
 use piston_window as pw;
 use piston_window::{PressEvent, UpdateEvent};
 
-const BACK_COLOR: pw::types::Color = [0.5, 0.5, 0.5, 1.0];
+const BACK_COLOR: pw::graphics::types::Color = [0.5, 0.5, 0.5, 1.0];
 const WIDTH: i32 = 15;
 const HEIGHT: i32 = WIDTH;
 const GAME_TITLE: &str = "Snake";
@@ -22,7 +22,7 @@ fn main() {
     // Load font for score display - try common Windows font paths
     let font_path = find_font();
     let mut glyphs = piston_window
-        .load_font(font_path)
+        .load_font(font_path, pw::wgpu_graphics::TextureSettings::new())
         .expect("Failed to load font");
 
     let sound_player = SoundPlayer::new();
@@ -33,10 +33,9 @@ fn main() {
             snake_game.key_pressed(key);
         }
 
-        piston_window.draw_2d(&event, |c, g, device| {
-            pw::clear(BACK_COLOR, g);
+        piston_window.draw_2d(&event, |c, g, _device| {
+            pw::graphics::clear(BACK_COLOR, g);
             snake_game.draw(&c, g, &mut glyphs);
-            glyphs.factory.encoder.flush(device);
         });
 
         event.update(|arg| {

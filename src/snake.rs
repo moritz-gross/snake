@@ -4,7 +4,7 @@ use piston_window as pw;
 
 use crate::draw::draw_block;
 
-const SNAKE_COLOR: pw::types::Color = [0.00, 0.80, 0.00, 1.0];
+const SNAKE_COLOR: pw::graphics::types::Color = [0.00, 0.80, 0.00, 1.0];
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Direction {
@@ -60,7 +60,7 @@ impl Snake {
         }
     }
 
-    pub fn draw(&self, con: &pw::Context, g: &mut pw::G2d) {
+    pub fn draw(&self, con: &pw::graphics::Context, g: &mut pw::wgpu_graphics::WgpuGraphics) {
         for block in &self.body {
             draw_block(SNAKE_COLOR, block.x, block.y, con, g);
         }

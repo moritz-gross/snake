@@ -1,19 +1,15 @@
 use std::time::Duration;
-use rodio::{OutputStream, OutputStreamHandle, Sink, Source};
+use rodio::{OutputStream, OutputStreamBuilder, Sink, Source};
 use rodio::source::SineWave;
 
 pub struct SoundPlayer {
-    _stream: OutputStream,
-    stream_handle: OutputStreamHandle,
+    stream: OutputStream,
 }
 
 impl SoundPlayer {
     pub fn new() -> Option<Self> {
-        match OutputStream::try_default() {
-            Ok((stream, handle)) => Some(SoundPlayer {
-                _stream: stream,
-                stream_handle: handle,
-            }),
+        match OutputStreamBuilder::open_default_stream() {
+            Ok(stream) => Some(SoundPlayer { stream }),
             Err(e) => {
                 eprintln!("Failed to initialize audio: {}", e);
                 None
@@ -38,11 +34,10 @@ impl SoundPlayer {
             .take_duration(Duration::from_millis(200))
             .amplify(0.3);
 
-        if let Ok(sink) = Sink::try_new(&self.stream_handle) {
-            sink.append(tone1);
-            sink.append(tone2);
-            sink.detach();
-        }
+        let sink = Sink::connect_new(self.stream.mixer());
+        sink.append(tone1);
+        sink.append(tone2);
+        sink.detach();
     }
 
     /// Play a rising tone on game start (330Hz -> 660Hz effect via two tones)
@@ -54,20 +49,18 @@ impl SoundPlayer {
             .take_duration(Duration::from_millis(150))
             .amplify(0.3);
 
-        if let Ok(sink) = Sink::try_new(&self.stream_handle) {
-            sink.append(tone1);
-            sink.append(tone2);
-            sink.detach();
-        }
+        let sink = Sink::connect_new(self.stream.mixer());
+        sink.append(tone1);
+        sink.append(tone2);
+        sink.detach();
     }
 
     fn play_source<S>(&self, source: S)
     where
         S: Source<Item = f32> + Send + 'static,
     {
-        if let Ok(sink) = Sink::try_new(&self.stream_handle) {
-            sink.append(source);
-            sink.detach();
-        }
+        let sink = Sink::connect_new(self.stream.mixer());
+        sink.append(source);
+        sink.detach();
     }
 }

@@ -1,5 +1,6 @@
 use piston_window as pw;
-use piston_window::{Glyphs, Transformed};
+use piston_window::Glyphs;
+use pw::graphics::Transformed;
 
 use rand::Rng;
 
@@ -8,11 +9,11 @@ use crate::draw::{draw_block, draw_rectangle, BLOCK_SIZE};
 use crate::snake::{Direction, Snake};
 use crate::persistence;
 
-const FOOD_COLOR: pw::types::Color = [0.80, 0.00, 0.00, 1.0];
-const BORDER_COLOR: pw::types::Color = [0.00, 0.00, 0.00, 1.0];
-const GAMEOVER_COLOR: pw::types::Color = [0.90, 0.00, 0.00, 0.5];
-const PAUSE_COLOR: pw::types::Color = [0.00, 0.00, 0.00, 0.5];
-const TEXT_COLOR: pw::types::Color = [1.0, 1.0, 1.0, 1.0];
+const FOOD_COLOR: pw::graphics::types::Color = [0.80, 0.00, 0.00, 1.0];
+const BORDER_COLOR: pw::graphics::types::Color = [0.00, 0.00, 0.00, 1.0];
+const GAMEOVER_COLOR: pw::graphics::types::Color = [0.90, 0.00, 0.00, 0.5];
+const PAUSE_COLOR: pw::graphics::types::Color = [0.00, 0.00, 0.00, 0.5];
+const TEXT_COLOR: pw::graphics::types::Color = [1.0, 1.0, 1.0, 1.0];
 const FONT_SIZE: u32 = 16;
 
 const MOVING_PERIOD: f64 = 0.3;
@@ -85,7 +86,12 @@ impl Game {
         self.update_snake(dir);
     }
 
-    pub fn draw(&self, con: &pw::Context, g: &mut pw::G2d, glyphs: &mut Glyphs) {
+    pub fn draw(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        glyphs: &mut Glyphs,
+    ) {
         self.snake.draw(con, g);
 
         if self.food_exists {
@@ -107,12 +113,12 @@ impl Game {
         let high_x = (self.width as f64) * BLOCK_SIZE - 80.0;
 
         let transform = con.transform.trans(score_x, text_y + FONT_SIZE as f64);
-        pw::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
+        pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
             .draw(&score_text, glyphs, &con.draw_state, transform, g)
             .unwrap_or(());
 
         let transform = con.transform.trans(high_x, text_y + FONT_SIZE as f64);
-        pw::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
+        pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
             .draw(&high_text, glyphs, &con.draw_state, transform, g)
             .unwrap_or(());
 
@@ -183,13 +189,13 @@ impl Game {
     }
 
     pub(crate) fn add_food(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let mut new_x = rng.gen_range(1..self.width - 1);
-        let mut new_y = rng.gen_range(1..self.height - 1);
+        let mut new_x = rng.random_range(1..self.width - 1);
+        let mut new_y = rng.random_range(1..self.height - 1);
         while self.snake.overlap_tail(new_x, new_y) {
-            new_x = rng.gen_range(1..self.width - 1);
-            new_y = rng.gen_range(1..self.height - 1);
+            new_x = rng.random_range(1..self.width - 1);
+            new_y = rng.random_range(1..self.height - 1);
         }
 
         self.food_x = new_x;
