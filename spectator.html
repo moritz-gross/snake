@@ -66,7 +66,7 @@
         ctx.fillText(`score: ${score}  state: ${state}  tick: ${tick}`, 6, 14);
       }
 
-      const ws = new WebSocket("ws://127.0.0.1:9001"); // port 9001 is also hardcoded in transmitter for now
+      const ws = new WebSocket(`ws://${location.hostname}:9001`);
       ws.onopen = () => {
         status.textContent = "Connected";
       };

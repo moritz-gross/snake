@@ -34,7 +34,8 @@ fn main() {
     let sound_player = SoundPlayer::new();
     let mut snake_game: Game = Game::new(WIDTH, HEIGHT, sound_player);
     #[cfg(feature = "spectator")]
-    let spectator = spectator_server::start("127.0.0.1:9001");
+    let spectator = spectator_server::start("0.0.0.0:9001");
+    spectator_server::start_http("0.0.0.0:8000");
 
     let base_width = to_coord_u32(WIDTH) as f64;
     let base_height = to_coord_u32(HEIGHT) as f64;

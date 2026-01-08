@@ -1,6 +1,8 @@
 #[cfg(feature = "spectator")]
 use serde::Serialize;
 #[cfg(feature = "spectator")]
+use std::io::{Read, Write};
+#[cfg(feature = "spectator")]
 use std::net::TcpListener;
 #[cfg(feature = "spectator")]
 use std::sync::mpsc;
@@ -69,4 +71,51 @@ pub fn start(addr: &str) -> SpectatorHandle {
     });
 
     SpectatorHandle { tx }
+}
+
+#[cfg(feature = "spectator")]
+pub fn start_http(addr: &str) {
+    let addr = addr.to_string();
+    thread::spawn(move || {
+        let listener = TcpListener::bind(&addr).expect("Failed to bind spectator HTTP socket");
+        for stream in listener.incoming() {
+            let mut stream = match stream {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let mut buf = [0u8; 1024];
+            let bytes = stream.read(&mut buf).unwrap_or(0);
+            let req = String::from_utf8_lossy(&buf[..bytes]);
+            let path = req
+                .lines()
+                .next()
+                .and_then(|line| line.split_whitespace().nth(1))
+                .unwrap_or("/");
+
+            let body = match path {
+                "/" | "/spectator.html" => include_str!("../spectator.html"),
+                "/health" => "ok",
+                _ => "not found",
+            };
+
+            let status = if path == "/" || path == "/spectator.html" || path == "/health" {
+                "200 OK"
+            } else {
+                "404 Not Found"
+            };
+
+            let content_type = if path == "/health" {
+                "text/plain; charset=utf-8"
+            } else {
+                "text/html; charset=utf-8"
+            };
+
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.as_bytes().len()
+            );
+            let _ = stream.write_all(response.as_bytes());
+        }
+    });
 }
