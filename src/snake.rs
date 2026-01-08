@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use piston_window as pw;
 
@@ -36,7 +36,7 @@ impl Direction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Block {
     x: i32,
     y: i32,
@@ -46,6 +46,7 @@ pub struct Snake {
     direction: Direction,
     body: VecDeque<Block>,
     tail: Option<Block>,
+    occupied: HashSet<Block>,
 }
 
 impl Snake {
@@ -55,10 +56,13 @@ impl Snake {
         body.push_back(Block { x: x + 1, y });
         body.push_back(Block { x, y });
 
+        let occupied: HashSet<Block> = body.iter().copied().collect();
+
         Snake {
             direction: Direction::Right,
             body,
             tail: None,
+            occupied,
         }
     }
 
@@ -109,7 +113,9 @@ impl Snake {
         };
 
         self.body.push_front(new_block_v2);
+        self.occupied.insert(new_block_v2);
         let removed_block = self.body.pop_back().unwrap();
+        self.occupied.remove(&removed_block);
         self.tail = Some(removed_block);
     }
 
@@ -129,14 +135,18 @@ impl Snake {
     }
 
     pub fn restore_tail(&mut self) {
-        let blk = self.tail.clone().unwrap();
+        let blk = self.tail.unwrap();
         self.body.push_back(blk);
+        self.occupied.insert(blk);
     }
 
+    /// runs in O(1) by using a hashset
     pub fn overlap_tail(&self, x: i32, y: i32) -> bool {
-        self.body.iter()
-            .skip(1)  // skip head
-            .any(|block| block.x == x && block.y == y)
+        let head = self.body.front().unwrap();
+        if head.x == x && head.y == y {
+            return false;
+        }
+        self.occupied.contains(&Block { x, y })
     }
 
 
