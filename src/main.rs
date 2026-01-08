@@ -35,6 +35,7 @@ fn main() {
     let mut snake_game: Game = Game::new(WIDTH, HEIGHT, sound_player);
     #[cfg(feature = "spectator")]
     let spectator = spectator_server::start("0.0.0.0:9001");
+    #[cfg(feature = "spectator")]
     spectator_server::start_http("0.0.0.0:8000");
 
     let base_width = to_coord_u32(WIDTH) as f64;
