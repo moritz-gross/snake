@@ -1,4 +1,5 @@
 mod audio;
+mod debug;
 mod draw;
 mod game;
 mod persistence;

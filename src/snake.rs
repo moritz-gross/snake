@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 use piston_window as pw;
 
 use crate::draw::draw_block;
+#[cfg(feature = "debug_draw")]
+use crate::draw::{to_coord, BLOCK_SIZE};
 
 const SNAKE_COLOR: pw::graphics::types::Color = [0.00, 0.80, 0.00, 1.0];
 
@@ -64,6 +66,28 @@ impl Snake {
         for block in &self.body {
             draw_block(SNAKE_COLOR, block.x, block.y, con, g);
         }
+    }
+
+    #[cfg(feature = "debug_draw")]
+    pub fn draw_direction_indicator(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        color: pw::graphics::types::Color,
+    ) {
+        let (hx, hy) = self.head_position();
+        let x = to_coord(hx);
+        let y = to_coord(hy);
+        let thickness = BLOCK_SIZE * 0.2;
+
+        let rect = match self.direction {
+            Direction::Up => [x, y, BLOCK_SIZE, thickness],
+            Direction::Down => [x, y + BLOCK_SIZE - thickness, BLOCK_SIZE, thickness],
+            Direction::Left => [x, y, thickness, BLOCK_SIZE],
+            Direction::Right => [x + BLOCK_SIZE - thickness, y, thickness, BLOCK_SIZE],
+        };
+
+        pw::graphics::rectangle(color, rect, con.transform, g);
     }
 
     pub fn head_position(&self) -> (i32, i32) {

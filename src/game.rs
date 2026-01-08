@@ -14,6 +14,8 @@ const BORDER_COLOR: pw::graphics::types::Color = [0.00, 0.00, 0.00, 1.0];
 const GAMEOVER_COLOR: pw::graphics::types::Color = [0.90, 0.00, 0.00, 0.5];
 const PAUSE_COLOR: pw::graphics::types::Color = [0.00, 0.00, 0.00, 0.5];
 const TEXT_COLOR: pw::graphics::types::Color = [1.0, 1.0, 1.0, 1.0];
+#[cfg(feature = "debug_draw")]
+const DEBUG_COLOR: pw::graphics::types::Color = [0.10, 0.80, 1.00, 0.9];
 const FONT_SIZE: u32 = 16;
 
 const MOVING_PERIOD: f64 = 0.3;
@@ -258,6 +260,11 @@ pub struct Game {
     waiting_time: f64,
     high_score: u32,
     sound_player: Option<SoundPlayer>,
+    last_dt: f64,
+    fps: f64,
+    fps_accum: f64,
+    fps_frames: u32,
+    tick_count: u64,
 }
 
 impl Game {
@@ -273,6 +280,11 @@ impl Game {
             state: GameState::Menu,
             high_score: persistence::load_high_score(),
             sound_player,
+            last_dt: 0.0,
+            fps: 0.0,
+            fps_accum: 0.0,
+            fps_frames: 0,
+            tick_count: 0,
         }
     }
 
@@ -333,10 +345,47 @@ impl Game {
         for renderable in renderables {
             renderable.render(con, g, glyphs);
         }
+
+        crate::debug_draw!({
+            self.snake.draw_direction_indicator(con, g, DEBUG_COLOR);
+
+            let dt_ms = self.last_dt * 1000.0;
+            let fps_text = format!("FPS: {:.1}", self.fps);
+            let dt_text = format!("dt: {:.2}ms", dt_ms);
+            let tick_text = format!("ticks: {}", self.tick_count);
+            let base_x = BLOCK_SIZE + 5.0;
+            let base_y = BLOCK_SIZE + 12.0;
+
+            let transform = con.transform.trans(base_x, base_y + FONT_SIZE as f64);
+            pw::graphics::text::Text::new_color(DEBUG_COLOR, FONT_SIZE)
+                .draw(&fps_text, glyphs, &con.draw_state, transform, g)
+                .unwrap_or(());
+
+            let transform = con.transform.trans(base_x, base_y + (FONT_SIZE as f64) * 2.0 + 6.0);
+            pw::graphics::text::Text::new_color(DEBUG_COLOR, FONT_SIZE)
+                .draw(&dt_text, glyphs, &con.draw_state, transform, g)
+                .unwrap_or(());
+
+            let transform = con.transform.trans(base_x, base_y + (FONT_SIZE as f64) * 3.0 + 12.0);
+            pw::graphics::text::Text::new_color(DEBUG_COLOR, FONT_SIZE)
+                .draw(&tick_text, glyphs, &con.draw_state, transform, g)
+                .unwrap_or(());
+
+        });
     }
 
     pub fn update(&mut self, delta_time: f64) {
         self.waiting_time += delta_time;
+        self.last_dt = delta_time;
+        self.fps_accum += delta_time;
+        self.fps_frames += 1;
+        self.tick_count += 1;
+
+        if self.fps_accum >= 1.0 {
+            self.fps = (self.fps_frames as f64) / self.fps_accum;
+            self.fps_accum = 0.0;
+            self.fps_frames = 0;
+        }
 
         if matches!(self.state, GameState::Paused | GameState::Menu) {
             return;
