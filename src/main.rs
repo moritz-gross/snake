@@ -46,8 +46,16 @@ fn main() {
 }
 
 fn find_font() -> std::path::PathBuf {
-    // Try common font locations on Windows
+    // Try common font locations on macOS and Windows
     let candidates = [
+
+        // macOS system fonts
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Supplemental/Courier New.ttf",
+        "/Library/Fonts/Arial.ttf",
+
+        // Windows fonts
         "C:/Windows/Fonts/consola.ttf",    // Consolas (monospace)
         "C:/Windows/Fonts/arial.ttf",      // Arial
         "C:/Windows/Fonts/segoeui.ttf",    // Segoe UI
@@ -62,7 +70,7 @@ fn find_font() -> std::path::PathBuf {
     }
 
     // Fallback - will likely fail but gives a clear error message
-    std::path::PathBuf::from("C:/Windows/Fonts/arial.ttf")
+    std::path::PathBuf::from("/System/Library/Fonts/Helvetica.ttc")
 }
 
 fn pw_from_constants() -> pw::PistonWindow {
