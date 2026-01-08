@@ -269,34 +269,25 @@ impl Game {
     }
 
     pub fn key_pressed(&mut self, key: pw::Key) {
-        if matches!(self.state, GameState::GameOver { .. }) {
-            return;
-        }
-
-        if matches!(self.state, GameState::Menu) {
-            if key == pw::Key::Return || key == pw::Key::Space {
+        let dir = match (key, &self.state) {
+            (_, GameState::GameOver { .. }) => return,
+            (pw::Key::Return | pw::Key::Space, GameState::Menu) => {
                 self.state = GameState::Playing;
+                return;
             }
-            return;
-        }
-
-        if key == pw::Key::Space {
-            if matches!(self.state, GameState::Playing) {
+            (pw::Key::Space, GameState::Playing) => {
                 self.state = GameState::Paused;
-            } else if matches!(self.state, GameState::Paused) {
-                self.state = GameState::Playing;
+                return;
             }
-        }
-
-        if matches!(self.state, GameState::Paused) {
-            return;
-        }
-
-        let dir = match key {
-            pw::Key::Up | pw::Key::W => Some(Direction::Up),
-            pw::Key::Down | pw::Key::S => Some(Direction::Down),
-            pw::Key::Left | pw::Key::A => Some(Direction::Left),
-            pw::Key::Right | pw::Key::D => Some(Direction::Right),
+            (pw::Key::Space, GameState::Paused) => {
+                self.state = GameState::Playing;
+                return;
+            }
+            (_, GameState::Paused) => return,
+            (pw::Key::Up | pw::Key::W, _) => Some(Direction::Up),
+            (pw::Key::Down | pw::Key::S, _) => Some(Direction::Down),
+            (pw::Key::Left | pw::Key::A, _) => Some(Direction::Left),
+            (pw::Key::Right | pw::Key::D, _) => Some(Direction::Right),
             _ => Some(self.snake.head_direction()),
         };
 
