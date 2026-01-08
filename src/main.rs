@@ -10,6 +10,7 @@ use crate::game::Game;
 
 use piston_window as pw;
 use piston_window::{PressEvent, UpdateEvent};
+use piston_window::graphics::Transformed;
 
 const BACK_COLOR: pw::graphics::types::Color = [0.5, 0.5, 0.5, 1.0];
 const WIDTH: i32 = 15;
@@ -28,6 +29,9 @@ fn main() {
     let sound_player = SoundPlayer::new();
     let mut snake_game: Game = Game::new(WIDTH, HEIGHT, sound_player);
 
+    let base_width = to_coord_u32(WIDTH) as f64;
+    let base_height = to_coord_u32(HEIGHT) as f64;
+
     while let Some(event) = piston_window.next() {
         if let Some(pw::Button::Keyboard(key)) = event.press_args() {
             snake_game.key_pressed(key);
@@ -35,7 +39,16 @@ fn main() {
 
         piston_window.draw_2d(&event, |c, g, _device| {
             pw::graphics::clear(BACK_COLOR, g);
-            snake_game.draw(&c, g, &mut glyphs);
+            let (win_w, win_h) = c.viewport
+                .map(|vp| (vp.window_size[0], vp.window_size[1]))
+                .unwrap_or((base_width, base_height));
+            let scale_x = win_w / base_width;
+            let scale_y = win_h / base_height;
+            let scaled_context = pw::graphics::Context {
+                transform: c.transform.scale(scale_x, scale_y),
+                ..c
+            };
+            snake_game.draw(&scaled_context, g, &mut glyphs);
         });
 
         event.update(|arg| {
@@ -74,6 +87,7 @@ fn find_font() -> std::path::PathBuf {
 
 fn pw_from_constants() -> pw::PistonWindow {
     pw::WindowSettings::new(GAME_TITLE, [to_coord_u32(WIDTH), to_coord_u32(HEIGHT)])
+        .resizable(true)
         .exit_on_esc(true)
         .build()
         .expect("Failed to create window")
