@@ -2,7 +2,7 @@ use piston_window as pw;
 use piston_window::Glyphs;
 use pw::graphics::Transformed;
 
-use rand::Rng;
+use rand::seq::IteratorRandom;
 
 use crate::audio::SoundPlayer;
 use crate::draw::{draw_block, draw_rectangle, BLOCK_SIZE};
@@ -95,6 +95,7 @@ struct Hud {
     score: usize,
     high_score: u32,
     width: i32,
+    turns: usize,
 }
 
 impl Renderable for Hud {
@@ -119,6 +120,13 @@ impl Renderable for Hud {
         let transform = con.transform.trans(high_x, text_y + FONT_SIZE as f64);
         pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
             .draw(&high_text, glyphs, &con.draw_state, transform, g)
+            .unwrap_or(());
+
+        let turns_text = format!("Turns: {}", self.turns);
+        let turns_y = text_y + (FONT_SIZE as f64) + 6.0;
+        let transform = con.transform.trans(score_x, turns_y + FONT_SIZE as f64);
+        pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
+            .draw(&turns_text, glyphs, &con.draw_state, transform, g)
             .unwrap_or(());
     }
 }
@@ -314,6 +322,7 @@ impl Game {
             score: self.snake.len(),
             high_score: self.high_score,
             width: self.grid.width,
+            turns: self.snake.corner_count(),
         }));
         renderables.push(Box::new(Overlay {
             state: self.state.clone(),
@@ -394,14 +403,14 @@ impl Game {
     pub(crate) fn add_food(&mut self) {
         let mut rng = rand::rng();
 
-        let mut new_x = rng.random_range(1..self.grid.width - 1);
-        let mut new_y = rng.random_range(1..self.grid.height - 1);
-        while self.snake.overlap_tail(new_x, new_y) {
-            new_x = rng.random_range(1..self.grid.width - 1);
-            new_y = rng.random_range(1..self.grid.height - 1);
-        }
+        let choice = (1..self.grid.width - 1)
+            .flat_map(|x| (1..self.grid.height - 1).map(move |y| (x, y))) // grid of all possible positions
+            .filter(|(x, y)| !self.snake.overlap_tail(*x, *y)) // don't intersect snake
+            .choose(&mut rng);
 
-        self.food.set_position(new_x, new_y);
+        if let Some((new_x, new_y)) = choice {
+            self.food.set_position(new_x, new_y);
+        }
     }
 
     fn update_snake(&mut self, direction: Option<Direction>) {

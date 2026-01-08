@@ -119,6 +119,24 @@ impl Snake {
     pub fn len(&self) -> usize {
         self.body.len()
     }
+
+    /// Returns how many direction changes occur along the snake body.
+    pub fn corner_count(&self) -> usize {
+        let parts: Vec<_> = self.body.iter().collect();
+        parts
+            .windows(3)
+            .filter(|window| {
+                let a = window[0];
+                let b = window[1];
+                let c = window[2];
+                let dx1 = b.x - a.x;
+                let dy1 = b.y - a.y;
+                let dx2 = c.x - b.x;
+                let dy2 = c.y - b.y;
+                dx1 != dx2 || dy1 != dy2
+            })
+            .count()
+    }
 }
 
 #[cfg(test)]
