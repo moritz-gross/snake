@@ -19,15 +19,201 @@ const FONT_SIZE: u32 = 16;
 const MOVING_PERIOD: f64 = 0.3;
 const RESTART_TIME: f64 = 3.0;
 
+trait Renderable {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        glyphs: &mut Glyphs,
+    );
+}
+
+struct Food {
+    exists: bool,
+    x: i32,
+    y: i32,
+}
+
+impl Food {
+    fn new(x: i32, y: i32) -> Food {
+        Food {
+            exists: true,
+            x,
+            y,
+        }
+    }
+
+    fn draw(&self, con: &pw::graphics::Context, g: &mut pw::wgpu_graphics::WgpuGraphics) {
+        if self.exists {
+            draw_block(FOOD_COLOR, self.x, self.y, con, g);
+        }
+    }
+
+    #[cfg(test)]
+    fn position(&self) -> Option<(i32, i32)> {
+        if self.exists {
+            Some((self.x, self.y))
+        } else {
+            None
+        }
+    }
+
+    fn set_position(&mut self, x: i32, y: i32) {
+        self.x = x;
+        self.y = y;
+        self.exists = true;
+    }
+}
+
+struct Grid {
+    width: i32,
+    height: i32,
+}
+
+impl Grid {
+    fn new(width: i32, height: i32) -> Grid {
+        Grid { width, height }
+    }
+
+    fn draw(&self, con: &pw::graphics::Context, g: &mut pw::wgpu_graphics::WgpuGraphics) {
+        draw_rectangle(BORDER_COLOR, 0, 0, self.width, 1, con, g);
+        draw_rectangle(BORDER_COLOR, 0, self.height - 1, self.width, 1, con, g);
+        draw_rectangle(BORDER_COLOR, 0, 0, 1, self.height, con, g);
+        draw_rectangle(BORDER_COLOR, self.width - 1, 0, 1, self.height, con, g);
+    }
+}
+
+struct Hud {
+    score: usize,
+    high_score: u32,
+    width: i32,
+}
+
+impl Renderable for Hud {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        glyphs: &mut Glyphs,
+    ) {
+        let score_text = format!("Score: {}", self.score);
+        let high_text = format!("High: {}", self.high_score);
+
+        let text_y = BLOCK_SIZE - 4.0;
+        let score_x = BLOCK_SIZE + 5.0;
+        let high_x = (self.width as f64) * BLOCK_SIZE - 80.0;
+
+        let transform = con.transform.trans(score_x, text_y + FONT_SIZE as f64);
+        pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
+            .draw(&score_text, glyphs, &con.draw_state, transform, g)
+            .unwrap_or(());
+
+        let transform = con.transform.trans(high_x, text_y + FONT_SIZE as f64);
+        pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
+            .draw(&high_text, glyphs, &con.draw_state, transform, g)
+            .unwrap_or(());
+    }
+}
+
+struct Overlay {
+    game_over: bool,
+    paused: bool,
+    width: i32,
+    height: i32,
+}
+
+impl Renderable for Overlay {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        _glyphs: &mut Glyphs,
+    ) {
+        if self.game_over {
+            draw_rectangle(GAMEOVER_COLOR, 0, 0, self.width, self.height, con, g);
+        }
+
+        if self.paused {
+            draw_rectangle(PAUSE_COLOR, 0, 0, self.width, self.height, con, g);
+            let center_x = self.width / 2;
+            let center_y = self.height / 2;
+            draw_rectangle(BORDER_COLOR, center_x - 1, center_y - 1, 1, 3, con, g);
+            draw_rectangle(BORDER_COLOR, center_x + 1, center_y - 1, 1, 3, con, g);
+        }
+    }
+}
+
+impl Renderable for Snake {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        _glyphs: &mut Glyphs,
+    ) {
+        Snake::draw(self, con, g);
+    }
+}
+
+impl Renderable for &Snake {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        _glyphs: &mut Glyphs,
+    ) {
+        Snake::draw(*self, con, g);
+    }
+}
+
+impl Renderable for Food {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        _glyphs: &mut Glyphs,
+    ) {
+        self.draw(con, g);
+    }
+}
+
+impl Renderable for &Food {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        _glyphs: &mut Glyphs,
+    ) {
+        self.draw(con, g);
+    }
+}
+
+impl Renderable for Grid {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        _glyphs: &mut Glyphs,
+    ) {
+        self.draw(con, g);
+    }
+}
+
+impl Renderable for &Grid {
+    fn render(
+        &self,
+        con: &pw::graphics::Context,
+        g: &mut pw::wgpu_graphics::WgpuGraphics,
+        _glyphs: &mut Glyphs,
+    ) {
+        self.draw(con, g);
+    }
+}
+
 pub struct Game {
     snake: Snake,
 
-    food_exists: bool,
-    food_x: i32,
-    food_y: i32,
-
-    width: i32,
-    height: i32,
+    food: Food,
+    grid: Grid,
 
     game_over: bool,
     waiting_time: f64,
@@ -44,11 +230,8 @@ impl Game {
         Game {
             snake: Snake::new(2, 2),
             waiting_time: 0.0,
-            food_exists: true,
-            food_x: 6,
-            food_y: 4,
-            width,
-            height,
+            food: Food::new(6, 4),
+            grid: Grid::new(width, height),
             game_over: false,
             high_score: persistence::load_high_score(),
             paused: false,
@@ -92,47 +275,24 @@ impl Game {
         g: &mut pw::wgpu_graphics::WgpuGraphics,
         glyphs: &mut Glyphs,
     ) {
-        self.snake.draw(con, g);
+        let mut renderables: Vec<Box<dyn Renderable + '_>> = Vec::new();
+        renderables.push(Box::new(&self.snake));
+        renderables.push(Box::new(&self.food));
+        renderables.push(Box::new(&self.grid));
+        renderables.push(Box::new(Hud {
+            score: self.snake.len(),
+            high_score: self.high_score,
+            width: self.grid.width,
+        }));
+        renderables.push(Box::new(Overlay {
+            game_over: self.game_over,
+            paused: self.paused,
+            width: self.grid.width,
+            height: self.grid.height,
+        }));
 
-        if self.food_exists {
-            draw_block(FOOD_COLOR, self.food_x, self.food_y, con, g);
-        }
-
-        draw_rectangle(BORDER_COLOR, 0, 0, self.width, 1, con, g);
-        draw_rectangle(BORDER_COLOR, 0, self.height - 1, self.width, 1, con, g);
-        draw_rectangle(BORDER_COLOR, 0, 0, 1, self.height, con, g);
-        draw_rectangle(BORDER_COLOR, self.width - 1, 0, 1, self.height, con, g);
-
-        // Draw score text
-        let score_text = format!("Score: {}", self.snake.len());
-        let high_text = format!("High: {}", self.high_score);
-
-        // Position text inside the top border
-        let text_y = BLOCK_SIZE - 4.0; // Just above the border
-        let score_x = BLOCK_SIZE + 5.0;
-        let high_x = (self.width as f64) * BLOCK_SIZE - 80.0;
-
-        let transform = con.transform.trans(score_x, text_y + FONT_SIZE as f64);
-        pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
-            .draw(&score_text, glyphs, &con.draw_state, transform, g)
-            .unwrap_or(());
-
-        let transform = con.transform.trans(high_x, text_y + FONT_SIZE as f64);
-        pw::graphics::text::Text::new_color(TEXT_COLOR, FONT_SIZE)
-            .draw(&high_text, glyphs, &con.draw_state, transform, g)
-            .unwrap_or(());
-
-        if self.game_over {
-            draw_rectangle(GAMEOVER_COLOR, 0, 0, self.width, self.height, con, g);
-        }
-
-        if self.paused {
-            draw_rectangle(PAUSE_COLOR, 0, 0, self.width, self.height, con, g);
-            // Draw two vertical bars for pause icon
-            let center_x = self.width / 2;
-            let center_y = self.height / 2;
-            draw_rectangle(BORDER_COLOR, center_x - 1, center_y - 1, 1, 3, con, g);
-            draw_rectangle(BORDER_COLOR, center_x + 1, center_y - 1, 1, 3, con, g);
+        for renderable in renderables {
+            renderable.render(con, g, glyphs);
         }
     }
 
@@ -150,7 +310,7 @@ impl Game {
             return;
         }
 
-        if !self.food_exists {
+        if !self.food.exists {
             self.add_food();
         }
 
@@ -161,8 +321,8 @@ impl Game {
 
     pub(crate) fn check_eating(&mut self) {
         let (head_x, head_y): (i32, i32) = self.snake.head_position();
-        if self.food_exists && self.food_x == head_x && self.food_y == head_y {
-            self.food_exists = false;
+        if self.food.exists && self.food.x == head_x && self.food.y == head_y {
+            self.food.exists = false;
             self.snake.restore_tail();
 
             if let Some(ref player) = self.sound_player {
@@ -185,22 +345,23 @@ impl Game {
             return false;
         }
 
-        next_x > 0 && next_y > 0 && next_x < self.width - 1 && next_y < self.height - 1
+        next_x > 0
+            && next_y > 0
+            && next_x < self.grid.width - 1
+            && next_y < self.grid.height - 1
     }
 
     pub(crate) fn add_food(&mut self) {
         let mut rng = rand::rng();
 
-        let mut new_x = rng.random_range(1..self.width - 1);
-        let mut new_y = rng.random_range(1..self.height - 1);
+        let mut new_x = rng.random_range(1..self.grid.width - 1);
+        let mut new_y = rng.random_range(1..self.grid.height - 1);
         while self.snake.overlap_tail(new_x, new_y) {
-            new_x = rng.random_range(1..self.width - 1);
-            new_y = rng.random_range(1..self.height - 1);
+            new_x = rng.random_range(1..self.grid.width - 1);
+            new_y = rng.random_range(1..self.grid.height - 1);
         }
 
-        self.food_x = new_x;
-        self.food_y = new_y;
-        self.food_exists = true;
+        self.food.set_position(new_x, new_y);
     }
 
     fn update_snake(&mut self, direction: Option<Direction>) {
@@ -219,9 +380,7 @@ impl Game {
     pub(crate) fn restart(&mut self) {
         self.snake = Snake::new(2, 2);
         self.waiting_time = 0.0;
-        self.food_exists = true;
-        self.food_x = 6;
-        self.food_y = 4;
+        self.food = Food::new(6, 4);
         self.game_over = false;
         if let Some(ref player) = self.sound_player {
             player.play_start();
@@ -240,11 +399,7 @@ impl Game {
 
     #[cfg(test)]
     pub(crate) fn food_position(&self) -> Option<(i32, i32)> {
-        if self.food_exists {
-            Some((self.food_x, self.food_y))
-        } else {
-            None
-        }
+        self.food.position()
     }
 
     #[cfg(test)]
@@ -259,9 +414,7 @@ impl Game {
 
     #[cfg(test)]
     pub(crate) fn set_food_position(&mut self, x: i32, y: i32) {
-        self.food_x = x;
-        self.food_y = y;
-        self.food_exists = true;
+        self.food.set_position(x, y);
     }
 }
 
@@ -278,8 +431,8 @@ mod test {
     #[test]
     fn new_creates_game_with_correct_dimensions() {
         let game = test_game(15, 15);
-        assert_eq!(game.width, 15);
-        assert_eq!(game.height, 15);
+        assert_eq!(game.grid.width, 15);
+        assert_eq!(game.grid.height, 15);
     }
 
     #[test]
@@ -427,7 +580,7 @@ mod test {
         let game = test_game(15, 15);
         // Snake head starts at (4, 2), moving right toward wall at x=14
         // At x=13, next move would hit wall at x=14 which is width-1
-        // Actually the boundary check is next_x < self.width - 1
+        // Actually the boundary check is next_x < self.grid.width - 1
         // So if next_x = 14 and width = 15, 14 < 14 is false
         assert!(game.check_if_snake_alive(None)); // should be alive initially
     }
@@ -450,7 +603,7 @@ mod test {
 
         // Place food in front of snake (snake head at (4,2), moving right)
         game.set_food_position(5, 2);
-        assert!(game.food_exists); // food exists before eating
+        assert!(game.food.exists); // food exists before eating
 
         game.update(0.35); // move onto food
 
@@ -459,17 +612,17 @@ mod test {
 
         // food_exists should now be false (food was consumed)
         // Note: add_food is called on NEXT update cycle, not immediately
-        assert!(!game.food_exists);
+        assert!(!game.food.exists);
 
         // Next update should spawn new food
         game.update(0.35);
-        assert!(game.food_exists);
+        assert!(game.food.exists);
     }
 
     #[test]
     fn add_food_places_food_in_bounds() {
         let mut game = test_game(15, 15);
-        game.food_exists = false;
+        game.food.exists = false;
         game.add_food();
 
         let (x, y) = game.food_position().unwrap();
@@ -483,7 +636,7 @@ mod test {
 
         // Mess up the game state
         game.game_over = true;
-        game.food_exists = false;
+        game.food.exists = false;
 
         game.restart();
 
