@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Snake Spectator</title>
+    <style>
+      body {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: #1e1e1e;
+        color: #e0e0e0;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      #wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+      }
+      canvas {
+        background: #6f6f6f;
+        image-rendering: pixelated;
+        border: 2px solid #111;
+      }
+      #status {
+        font-size: 14px;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <canvas id="view" width="450" height="450"></canvas>
+      <div id="status">Connecting…</div>
+    </div>
+    <script>
+      const canvas = document.getElementById("view");
+      const ctx = canvas.getContext("2d");
+      const status = document.getElementById("status");
+
+      function draw(snapshot) {
+        const { width, height, snake, food, score, state, tick } = snapshot;
+        const cell = Math.floor(Math.min(canvas.width / width, canvas.height / height));
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#6f6f6f";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#0f0";
+        for (const [x, y] of snake) {
+          ctx.fillRect(x * cell, y * cell, cell, cell);
+        }
+
+        if (food) {
+          ctx.fillStyle = "#d40000";
+          ctx.fillRect(food[0] * cell, food[1] * cell, cell, cell);
+        }
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, cell);
+        ctx.fillStyle = "#fff";
+        ctx.font = "12px monospace";
+        ctx.fillText(`score: ${score}  state: ${state}  tick: ${tick}`, 6, 14);
+      }
+
+      const ws = new WebSocket("ws://127.0.0.1:9001"); // port 9001 is also hardcoded in transmitter for now
+      ws.onopen = () => {
+        status.textContent = "Connected";
+      };
+      ws.onclose = () => {
+        status.textContent = "Disconnected";
+      };
+      ws.onerror = () => {
+        status.textContent = "Error";
+      };
+      ws.onmessage = (evt) => {
+        try {
+          const snapshot = JSON.parse(evt.data);
+          draw(snapshot);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+    </script>
+  </body>
+</html>

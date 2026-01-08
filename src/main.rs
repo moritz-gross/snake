@@ -4,10 +4,14 @@ mod draw;
 mod game;
 mod persistence;
 mod snake;
+#[cfg(feature = "spectator")]
+mod spectator;
 
 use crate::audio::SoundPlayer;
 use crate::draw::to_coord_u32;
 use crate::game::Game;
+#[cfg(feature = "spectator")]
+use crate::spectator as spectator_server;
 
 use piston_window as pw;
 use piston_window::{PressEvent, UpdateEvent};
@@ -29,6 +33,8 @@ fn main() {
 
     let sound_player = SoundPlayer::new();
     let mut snake_game: Game = Game::new(WIDTH, HEIGHT, sound_player);
+    #[cfg(feature = "spectator")]
+    let spectator = spectator_server::start("127.0.0.1:9001");
 
     let base_width = to_coord_u32(WIDTH) as f64;
     let base_height = to_coord_u32(HEIGHT) as f64;
@@ -54,6 +60,8 @@ fn main() {
 
         event.update(|arg| {
             snake_game.update(arg.dt);
+            #[cfg(feature = "spectator")]
+            spectator.send(snake_game.game_snapshot());
         });
     }
 }

@@ -154,6 +154,10 @@ impl Snake {
         self.body.len()
     }
 
+    pub fn body_positions(&self) -> Vec<(i32, i32)> {
+        self.body.iter().map(|block| (block.x, block.y)).collect()
+    }
+
     /// Returns how many direction changes occur along the snake body.
     pub fn corner_count(&self) -> usize {
         let parts: Vec<_> = self.body.iter().collect();

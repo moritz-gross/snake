@@ -1,0 +1,72 @@
+#[cfg(feature = "spectator")]
+use serde::Serialize;
+#[cfg(feature = "spectator")]
+use std::net::TcpListener;
+#[cfg(feature = "spectator")]
+use std::sync::mpsc;
+#[cfg(feature = "spectator")]
+use std::thread;
+#[cfg(feature = "spectator")]
+use std::time::Duration;
+#[cfg(feature = "spectator")]
+use tungstenite::{accept, Message, WebSocket};
+
+#[cfg(feature = "spectator")]
+#[derive(Serialize)]
+pub struct GameSnapshot {
+    pub width: i32,
+    pub height: i32,
+    pub snake: Vec<(i32, i32)>,
+    pub food: Option<(i32, i32)>,
+    pub score: usize,
+    pub state: String,
+    pub tick: u64,
+}
+
+#[cfg(feature = "spectator")]
+pub struct SpectatorHandle {
+    tx: mpsc::Sender<GameSnapshot>,
+}
+
+#[cfg(feature = "spectator")]
+impl SpectatorHandle {
+    pub fn send(&self, snapshot: GameSnapshot) {
+        let _ = self.tx.send(snapshot);
+    }
+}
+
+#[cfg(feature = "spectator")]
+pub fn start(addr: &str) -> SpectatorHandle {
+    let (tx, rx) = mpsc::channel::<GameSnapshot>();
+    let addr = addr.to_string();
+
+    thread::spawn(move || {
+        let listener = TcpListener::bind(&addr).expect("Failed to bind spectator socket");
+        listener.set_nonblocking(true).expect("Failed to set nonblocking spectator socket");
+
+        let mut clients: Vec<WebSocket<std::net::TcpStream>> = Vec::new();
+
+        loop {
+            while let Ok((stream, _)) = listener.accept() {
+                if let Ok(mut ws) = accept(stream) {
+                    let _ = ws.get_mut().set_nodelay(true);
+                    clients.push(ws);
+                }
+            }
+
+            match rx.recv_timeout(Duration::from_millis(16)) {
+                Ok(snapshot) => {
+                    let payload = serde_json::to_string(&snapshot).unwrap_or_default();
+                    clients.retain_mut(|client| client
+                        .send(Message::Text(payload.clone().into()))
+                        .is_ok()
+                    );
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+    });
+
+    SpectatorHandle { tx }
+}

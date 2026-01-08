@@ -8,6 +8,8 @@ use crate::audio::SoundPlayer;
 use crate::draw::{draw_block, draw_rectangle, BLOCK_SIZE};
 use crate::snake::{Direction, Snake};
 use crate::persistence;
+#[cfg(feature = "spectator")]
+use crate::spectator::GameSnapshot;
 
 const FOOD_COLOR: pw::graphics::types::Color = [0.80, 0.00, 0.00, 1.0];
 const BORDER_COLOR: pw::graphics::types::Color = [0.00, 0.00, 0.00, 1.0];
@@ -59,7 +61,6 @@ impl Food {
         }
     }
 
-    #[cfg(test)]
     fn position(&self) -> Option<(i32, i32)> {
         if self.exists {
             Some((self.x, self.y))
@@ -488,6 +489,19 @@ impl Game {
         }
     }
 
+    #[cfg(feature = "spectator")]
+    pub fn game_snapshot(&self) -> GameSnapshot {
+        GameSnapshot {
+            width: self.grid.width,
+            height: self.grid.height,
+            snake: self.snake.body_positions(),
+            food: self.food.position(),
+            score: self.snake.len(),
+            state: state_name(&self.state).to_string(),
+            tick: self.tick_count,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn is_game_over(&self) -> bool {
         matches!(self.state, GameState::GameOver { .. })
@@ -521,6 +535,16 @@ impl Game {
     #[cfg(test)]
     pub(crate) fn set_food_position(&mut self, x: i32, y: i32) {
         self.food.set_position(x, y);
+    }
+}
+
+#[cfg(feature = "spectator")]
+fn state_name(state: &GameState) -> &'static str {
+    match state {
+        GameState::Menu => "Menu",
+        GameState::Playing => "Playing",
+        GameState::Paused => "Paused",
+        GameState::GameOver { .. } => "GameOver",
     }
 }
 
