@@ -1,26 +1,65 @@
 use std::fs;
+use std::fmt;
+use std::num::ParseIntError;
 use std::path::Path;
 
 const HIGHSCORE_FILE: &str = "highscore.txt";
 
+#[derive(Debug)]
+pub enum PersistenceError {
+    Io(std::io::Error),
+    Parse(ParseIntError),
+}
+
+impl fmt::Display for PersistenceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PersistenceError::Io(err) => write!(f, "io error: {}", err),
+            PersistenceError::Parse(err) => write!(f, "parse error: {}", err),
+        }
+    }
+}
+
+impl std::error::Error for PersistenceError {}
+
+impl From<std::io::Error> for PersistenceError {
+    fn from(err: std::io::Error) -> Self {
+        PersistenceError::Io(err)
+    }
+}
+
+impl From<ParseIntError> for PersistenceError {
+    fn from(err: ParseIntError) -> Self {
+        PersistenceError::Parse(err)
+    }
+}
+
 pub fn save_high_score(score: u32) {
-    if let Err(e) = fs::write(HIGHSCORE_FILE, score.to_string()) {
+    if let Err(e) = try_save_high_score(score) {
         eprintln!("Failed to save high score: {}", e);
     }
 }
 
 pub fn load_high_score() -> u32 {
-    if Path::new(HIGHSCORE_FILE).exists() {
-        match fs::read_to_string(HIGHSCORE_FILE) {
-            Ok(content) => content.trim().parse().unwrap_or(0),
-            Err(e) => {
-                eprintln!("Failed to load high score: {}", e);
-                0
-            }
-        }
-    } else {
+    try_load_high_score().unwrap_or_else(|e| {
+        eprintln!("Failed to load high score: {}", e);
         0
+    })
+}
+
+pub fn try_save_high_score(score: u32) -> Result<(), PersistenceError> {
+    fs::write(HIGHSCORE_FILE, score.to_string())?;
+    Ok(())
+}
+
+pub fn try_load_high_score() -> Result<u32, PersistenceError> {
+    if !Path::new(HIGHSCORE_FILE).exists() {
+        return Ok(0);
     }
+
+    let content = fs::read_to_string(HIGHSCORE_FILE)?;
+    let score = content.trim().parse::<u32>()?;
+    Ok(score)
 }
 
 #[cfg(test)]
