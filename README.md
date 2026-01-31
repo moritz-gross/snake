@@ -1,6 +1,6 @@
 ### An implementation of the videogame *Snake* using Rust
 
-My first pet project using this language.
+A pet project for learning Rust.
 
 
 
